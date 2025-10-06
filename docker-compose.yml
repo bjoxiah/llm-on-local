@@ -26,6 +26,6 @@ services:
         ollama run qwen 'Hello' > /dev/null &&
         wait
       "   
-
+      
 volumes:
   ollama_data:
