@@ -4,6 +4,9 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /app
 
+# Install curl (for testing connectivity)
+RUN apk add --no-cache curl
+
 # Install dependencies first (only package.json for caching)
 COPY package.json package-lock.json* ./
 

@@ -1,15 +1,21 @@
 'use client';
+import { preparePrompt } from '@/lib';
+import { Conversation } from '@/models';
+import useContextPipelineStore from '@/store';
 import { useState, useRef, useEffect } from 'react';
 import { FaRobot, FaPaperPlane } from 'react-icons/fa';
 
+type Message = Conversation & { id: number };
+
 export const ChatComponent = () => {
-	const [messages, setMessages] = useState([
-		{ id: 1, sender: 'ai', text: 'Hello! How can I help you today?' },
+	const [messages, setMessages] = useState<Message[]>([
+		{id: 1, role: 'assistant', content: 'Hello! How can I help you today?' },
 	]);
 	const [input, setInput] = useState('');
 	const [loading, setLoading] = useState(false);
 	const abortRef = useRef<AbortController | null>(null);
 	const containerRef = useRef<HTMLDivElement | null>(null);
+	const { addMessage } = useContextPipelineStore();
 
 	useEffect(() => {
 		const container = containerRef.current;
@@ -32,23 +38,29 @@ export const ChatComponent = () => {
 	const sendMessage = async () => {
 		if (!input.trim() || loading) return;
 
-		const userMsg = { id: Date.now(), sender: 'user', text: input };
+		const userMsg: Message = { id: Date.now(), role: 'user', content: input }; 
 		const aiMsgId = Date.now() + 1;
+		addMessage({role: 'user', content: input});
+
+		const placeholder = { role: 'assistant', content: '' };
+		addMessage(placeholder);
 
 		setMessages((prev) => [
 			...prev,
 			userMsg,
-			{ id: aiMsgId, sender: 'ai', text: '' },
+			{ id: aiMsgId, ...placeholder },
 		]);
 		setInput('');
 		setLoading(true);
 
 		abortRef.current = new AbortController();
 
+		const prompt = preparePrompt(input);
+
 		try {
 			const res = await fetch('/api/chat', {
 				method: 'POST',
-				body: JSON.stringify({ message: userMsg.text }),
+				body: JSON.stringify({ prompt }),
 				signal: abortRef.current.signal,
 			});
 
@@ -75,11 +87,24 @@ export const ChatComponent = () => {
 						aiText += data;
 						setMessages((prev) =>
 							prev.map((m) =>
-								m.id === aiMsgId ? { ...m, text: aiText } : m
+								m.id === aiMsgId ? { ...m, content: aiText } : m
 							)
 						);
 					}
 				}
+
+				useContextPipelineStore.setState((state) => {
+					const updated = [...state.conversationHistory];
+					const lastIdx = updated
+						.slice()
+						.reverse()
+						.findIndex((m) => m.role === 'assistant');
+					if (lastIdx !== -1) {
+						const idx = updated.length - 1 - lastIdx;
+						updated[idx] = { ...updated[idx], content: aiText };
+					}
+					return { conversationHistory: updated };
+				});
 			}
 		} catch (err) {
 			console.error('Streaming error:', err);
@@ -96,12 +121,12 @@ export const ChatComponent = () => {
 					<div
 						key={msg.id}
 						className={`flex items-start max-w-3xl mx-auto ${
-							msg.sender === 'user'
+							msg.role === 'user'
 								? 'justify-end'
 								: 'justify-start'
 						}`}
 					>
-						{msg.sender === 'ai' ? (
+						{msg.role === 'assistant' ? (
 							<div className="w-8 h-8 flex-shrink-0 rounded-sm bg-[#565869] flex items-center justify-center text-white mr-3">
 								<FaRobot size={16} />
 							</div>
@@ -111,12 +136,12 @@ export const ChatComponent = () => {
 
 						<div
 							className={`px-4 py-2 rounded-md max-w-full break-words whitespace-pre-wrap ${
-								msg.sender === 'ai'
+								msg.role === 'assistant'
 									? 'bg-[#444654] text-gray-200'
 									: 'bg-[#40414f] border border-[#565869] text-gray-200'
 							}`}
 						>
-							{msg.text}
+							{msg.content}
 						</div>
 					</div>
 				))}
