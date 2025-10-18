@@ -11,7 +11,7 @@ export type AppState = {
 }
 
 export type AppActions = {
-    addMessage: (conversation: Conversation) => void;
+    addMessage: (conversation: Conversation[]) => void;
     updateMemory: (key: string, value: string) => void;
     addRetrievedDoc: (doc: string) => void;
     resetPipeline: () => void;

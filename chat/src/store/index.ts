@@ -13,13 +13,13 @@ const initialState: AppState = {
 const useContextPipelineStore = create<AppState & AppActions>((set, get) => ({
   ...initialState,
   // Add a message
-  addMessage: async (conversation: Conversation) => {
+  addMessage: async (conversation: Conversation[]) => {
     const { conversationHistory, conversationSummary } = get();
-    const updatedHistory = [...conversationHistory, conversation];
+    const updatedHistory = [...conversationHistory, ...conversation];
 
     if (updatedHistory.length > 6) {
-      const oldMessages = updatedHistory.slice(0, -3);
-      const recentMessages = updatedHistory.slice(-3);
+      const oldMessages = updatedHistory.slice(0, -6);
+      const recentMessages = updatedHistory.slice(-6);
 
       // 🔥 Call Qwen to summarize older messages
       const summary = await qwenSummarizeOldMessages(oldMessages);

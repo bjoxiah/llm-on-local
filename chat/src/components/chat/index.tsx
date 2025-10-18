@@ -40,10 +40,8 @@ export const ChatComponent = () => {
 
 		const userMsg: Message = { id: Date.now(), role: 'user', content: input }; 
 		const aiMsgId = Date.now() + 1;
-		addMessage({role: 'user', content: input});
 
 		const placeholder = { role: 'assistant', content: '' };
-		addMessage(placeholder);
 
 		setMessages((prev) => [
 			...prev,
@@ -93,18 +91,8 @@ export const ChatComponent = () => {
 					}
 				}
 
-				useContextPipelineStore.setState((state) => {
-					const updated = [...state.conversationHistory];
-					const lastIdx = updated
-						.slice()
-						.reverse()
-						.findIndex((m) => m.role === 'assistant');
-					if (lastIdx !== -1) {
-						const idx = updated.length - 1 - lastIdx;
-						updated[idx] = { ...updated[idx], content: aiText };
-					}
-					return { conversationHistory: updated };
-				});
+				// insert 1 turn
+				addMessage([{role: 'user', content: input}, {role: 'assistant', content: aiText}])
 			}
 		} catch (err) {
 			console.error('Streaming error:', err);
