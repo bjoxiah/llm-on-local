@@ -91,9 +91,9 @@ export const ChatComponent = () => {
 					}
 				}
 
-				// insert 1 turn
-				addMessage([{role: 'user', content: input}, {role: 'assistant', content: aiText}])
 			}
+			// insert 1 turn
+			addMessage([{role: 'user', content: input}, {role: 'assistant', content: aiText}])
 		} catch (err) {
 			console.error('Streaming error:', err);
 		} finally {
