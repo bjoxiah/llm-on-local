@@ -3,19 +3,24 @@ import { preparePrompt } from '@/lib';
 import { Conversation } from '@/models';
 import useContextPipelineStore from '@/store';
 import { useState, useRef, useEffect } from 'react';
-import { FaRobot, FaPaperPlane } from 'react-icons/fa';
+import { FaRobot, FaPaperPlane, FaFileAlt, FaSpinner } from 'react-icons/fa';
+import { FileButtonComponent } from '../file';
+import { FaCircleXmark } from 'react-icons/fa6';
 
 type Message = Conversation & { id: number };
 
 export const ChatComponent = () => {
 	const [messages, setMessages] = useState<Message[]>([
-		{id: 1, role: 'assistant', content: 'Hello! How can I help you today?' },
+		{
+			id: 1,
+			role: 'assistant',
+			content: 'Hello! How can I help you today?',
+		},
 	]);
 	const [input, setInput] = useState('');
-	const [loading, setLoading] = useState(false);
 	const abortRef = useRef<AbortController | null>(null);
 	const containerRef = useRef<HTMLDivElement | null>(null);
-	const { addMessage } = useContextPipelineStore();
+	const { addMessage, fileLoader, fileName, setFileLoader, setFileName, loader, setLoader, addRetrievedDoc } = useContextPipelineStore();
 
 	useEffect(() => {
 		const container = containerRef.current;
@@ -36,9 +41,25 @@ export const ChatComponent = () => {
 	}, [messages]);
 
 	const sendMessage = async () => {
-		if (!input.trim() || loading) return;
+		if (!input.trim() || loader) return;
 
-		const userMsg: Message = { id: Date.now(), role: 'user', content: input }; 
+		// Retriever pattern for LLMs
+		if (fileName) {
+			const retrieval = await fetch("/api/retrieval", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ query: input }),
+			});
+			const data = await retrieval.json();
+			// save to the store
+			addRetrievedDoc(data.docs.map((doc: {pageContent: string, metaData: object}) => doc.pageContent).join("\n"));
+		}
+
+		const userMsg: Message = {
+			id: Date.now(),
+			role: 'user',
+			content: input,
+		};
 		const aiMsgId = Date.now() + 1;
 
 		const placeholder = { role: 'assistant', content: '' };
@@ -49,7 +70,7 @@ export const ChatComponent = () => {
 			{ id: aiMsgId, ...placeholder },
 		]);
 		setInput('');
-		setLoading(true);
+		setLoader(true);
 
 		abortRef.current = new AbortController();
 
@@ -90,21 +111,33 @@ export const ChatComponent = () => {
 						);
 					}
 				}
-
 			}
 			// insert 1 turn
-			addMessage([{role: 'user', content: input}, {role: 'assistant', content: aiText}])
+			addMessage([
+				{ role: 'user', content: input },
+				{ role: 'assistant', content: aiText },
+			]);
+
+			setFileName('');
 		} catch (err) {
 			console.error('Streaming error:', err);
 		} finally {
-			setLoading(false);
+			setLoader(false);
 		}
+	};
+
+	const handleCancelFile = () => {
+		setFileName('');
+		setFileLoader(false);
 	};
 
 	return (
 		<div className="flex flex-col h-full bg-[#343541] text-gray-200">
 			{/* Messages */}
-			<div ref={containerRef} className="flex-1 overflow-y-auto w-full px-4 py-4 space-y-4">
+			<div
+				ref={containerRef}
+				className="flex-1 overflow-y-auto w-full px-4 py-4 space-y-4"
+			>
 				{messages.map((msg) => (
 					<div
 						key={msg.id}
@@ -134,7 +167,7 @@ export const ChatComponent = () => {
 					</div>
 				))}
 
-				{loading && (
+				{loader && (
 					<div className="flex items-start max-w-3xl mx-auto">
 						<div className="w-8 h-8 rounded-sm bg-[#565869] flex items-center justify-center text-white mr-3">
 							<FaRobot size={16} />
@@ -148,7 +181,46 @@ export const ChatComponent = () => {
 
 			{/* Input */}
 			<div className="bg-[#343541] border-t border-gray-700 p-4">
+				{fileName && (
+					<div className="w-full max-w-3xl mx-auto mb-3">
+						<div className="relative flex items-center gap-3 border border-gray-600 rounded-md bg-[#2b2c34] px-3 py-2 shadow-sm">
+							{/* File icon or loader */}
+							<div className="flex items-center justify-center w-10 h-10 bg-purple-200 rounded-md shrink-0">
+								{fileLoader ? (
+									<FaSpinner
+										className="animate-spin text-black"
+										size={18}
+									/>
+								) : (
+									<FaFileAlt
+										className="text-black"
+										size={16}
+									/>
+								)}
+							</div>
+
+							{/* File name */}
+							<p className="text-gray-300 text-sm truncate flex-1">
+								{fileName}
+							</p>
+
+							{/* Cancel / remove button */}
+							<button
+								onClick={handleCancelFile} // optional handler
+								className="absolute -top-2 -right-2 p-1 bg-[#1e1f29] rounded-full hover:bg-red-500 hover:text-white transition cursor-pointer"
+								disabled={fileLoader || loader}
+							>
+								<FaCircleXmark
+									size={14}
+									className="text-red-400"
+								/>
+							</button>
+						</div>
+					</div>
+				)}
+
 				<div className="max-w-3xl mx-auto flex items-center gap-2 w-full">
+					<FileButtonComponent />
 					<input
 						type="text"
 						value={input}
@@ -159,8 +231,8 @@ export const ChatComponent = () => {
 					/>
 					<button
 						onClick={sendMessage}
-						className="p-3 bg-transparent text-gray-400 hover:text-gray-200"
-						disabled={loading}
+						className="p-3 bg-transparent text-gray-400 hover:text-gray-200 cursor-pointer"
+						disabled={fileLoader || loader}
 					>
 						<FaPaperPlane size={18} />
 					</button>

@@ -3,10 +3,13 @@ import { AppState, AppActions, Conversation } from '@/models';
 import { create } from 'zustand';
 
 const initialState: AppState = {
-    conversationHistory: [],
-    conversationSummary: '',
-    memory: {},
-    retrievedDocs: [],
+  conversationHistory: [],
+  conversationSummary: '',
+  memory: {},
+  retrievedDocs: [],
+  fileLoader: false,
+  fileName: '',
+  loader: false
 }
 
 
@@ -44,7 +47,27 @@ const useContextPipelineStore = create<AppState & AppActions>((set, get) => ({
     set((state) => ({
       retrievedDocs: [...state.retrievedDocs, doc],
     })),
+  
+  // Set File Loader
+  setFileLoader: (loading) =>
+    set((_) => ({
+      fileLoader: loading,
+    })
+  ),
 
+  // Set Loader
+  setLoader: (loader) =>
+    set((_) => ({
+      loader,
+    })
+  ),
+  // Set File Name
+  setFileName(name) {
+    set((_) => ({
+      fileName: name,
+    }));
+  },
+  
   // Reset pipeline completely
   resetPipeline: () =>
     set({...initialState}),

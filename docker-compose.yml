@@ -24,6 +24,7 @@ services:
         ollama serve &
         sleep 2 &&
         ollama run qwen 'Hello' > /dev/null &&
+        ollama pull nomic-embed-text && 
         wait
       "   
       
